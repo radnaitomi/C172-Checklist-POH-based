@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>C172 POH EFB Checklist</title>
+    <style>
+        :root {
+            --bg-color: #121824;
+            --card-bg: #1e2538;
+            --accent-color: #3b82f6;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --checked-color: #10b981;
+            --border-color: #2e374d;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            touch-action: manipulation;
+        }
+
+        #app-container {
+            max-width: 1024px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin: 0;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .back-btn, .reset-btn {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .back-btn:active, .reset-btn:active {
+            background-color: var(--accent-color);
+        }
+
+        /* Views */
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        /* Main Menu Grid Grid */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .menu-section-title {
+            grid-column: 1 / -1;
+            font-size: 18px;
+            color: var(--accent-color);
+            margin-top: 15px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .menu-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .menu-card:active {
+            border-color: var(--accent-color);
+            background-color: #242c42;
+        }
+
+        .menu-card h2 {
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .progress-badge {
+            font-size: 13px;
+            background-color: var(--bg-color);
+            padding: 4px 8px;
+            border-radius: 12px;
+            color: var(--text-muted);
+            font-weight: bold;
+        }
+
+        .progress-badge.complete {
+            background-color: var(--checked-color);
+            color: #fff;
+        }
+
+        /* Checklist Items */
+        .checklist-group {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .checklist-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .checklist-row:last-child {
+            border-bottom: none;
+        }
+
+        .checklist-item-text {
+            font-size: 18px;
+            font-weight: 500;
+            flex-grow: 1;
+            padding-right: 15px;
+        }
+
+        .checklist-action-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            text-align: right;
+            min-width: 120px;
+        }
+
+        /* Checked State Styling */
+        .checklist-row.checked {
+            background-color: rgba(16, 185, 129, 0.12);
+        }
+
+        .checklist-row.checked .checklist-item-text {
+            color: var(--text-muted);
+            text-decoration: line-through;
+        }
+
+        .checklist-row.checked .checklist-action-text {
+            color: var(--checked-color);
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <header>
+        <button class="back-btn" id="backButton" style="visibility: hidden;" onclick="showMenu()">← MENU</button>
+        <h1 id="mainTitle">C172 POH CHECKLIST</h1>
+        <button class="reset-btn" onclick="resetAll()">RESET</button>
+    </header>
+
+    <!-- Main Menu View -->
+    <div id="menuView" class="view active">
+        <div class="menu-grid" id="menuGrid"></div>
+    </div>
+
+    <!-- Active Checklist View -->
+    <div id="checklistView" class="view">
+        <div id="itemsContainer"></div>
+    </div>
+</div>
+
+<script>
+    // System Data structured explicitly by POH Sections
+    const checklistData = {
+        "preflight-cabin": { title: "1. Preflight - Cabin", category: "Preflight Inspection", items: [
+            { item: "Control Wheel Lock", action: "REMOVE" },
+            { item: "Ignition Switch", action: "OFF (Keys on Dash)" },
+            { item: "Avionics Master Switch", action: "OFF" },
+            { item: "Master Switch", action: "ON" },
+            { item: "Fuel Quantity Indicators", action: "CHECK QUANTITY" },
+            { item: "Avionics Cooling Fan", action: "VERIFY OPERATIONAL" },
+            { item: "Master Switch", action: "OFF" },
+            { item: "Fuel Selector Valve", action: "BOTH" },
+            { item: "Baggage Door", action: "CHECK SECURE" }
+        ]},
+        "preflight-empennage": { title: "2. Preflight - Empennage", category: "Preflight Inspection", items: [
+            { item: "Rudder Gust Lock", action: "REMOVE" },
+            { item: "Tail Tie-Down", action: "DISCONNECT" },
+            { item: "Control Surfaces", action: "FREE & SECURE" },
+            { item: "Elevator Trim Tab", action: "CHECK SECURITY" },
+            { item: "Antennas", action: "CHECK CONDITION" }
+        ]},
+        "preflight-rwing": { title: "3. Preflight - Right Wing", category: "Preflight Inspection", items: [
+            { item: "Flap & Aileron", action: "CHECK FREEDOM/SECURITY" },
+            { item: "Wing Tip & Nav Light", action: "CHECK CONDITION" },
+            { item: "Wing Tie-Down", action: "DISCONNECT" },
+            { item: "Main Wheel, Tire & Brake", action: "CHECK CONDITION/PSI" },
+            { item: "Fuel Tank Sump Drains (5)", action: "DRAIN & CHECK" },
+            { item: "Fuel Quantity", action: "VISUALLY CHECK" },
+            { item: "Fuel Filler Cap", action: "SECURE & VENT CLEAR" }
+        ]},
+        "preflight-nose": { title: "4. Preflight - Nose Section", category: "Preflight Inspection", items: [
+            { item: "Fuel Strainer Drain", action: "DRAIN (4 SECONDS)" },
+            { item: "Engine Oil Level", action: "CHECK (5-8 QUARTS)" },
+            { item: "Propeller & Spinner", action: "CHECK CONDITION" },
+            { item: "Engine Cooling Inlets", action: "CLEAR OF DEBRIS" },
+            { item: "Nose Wheel Strut & Tire", action: "CHECK INFLATION" },
+            { item: "Alternator Belt", action: "CHECK TENSION" },
+            { item: "Nose Tie-Down", action: "DISCONNECT" },
+            { item: "Static Source Opening (Left)", action: "CHECK UNOBSTRUCTED" }
+        ]},
+        "preflight-lwing": { title: "5. Preflight - Left Wing", category: "Preflight Inspection", items: [
+            { item: "Fuel Quantity", action: "VISUALLY CHECK" },
+            { item: "Fuel Filler Cap", action: "SECURE & VENT CLEAR" },
+            { item: "Pitot Tube Cover", action: "REMOVE & CHECK CLEAR" },
+            { item: "Fuel Tank Vent Opening", action: "CHECK OPEN" },
+            { item: "Stall Warning Opening", action: "CHECK SUCTION" },
+            { item: "Wing Tie-Down", action: "DISCONNECT" },
+            { item: "Main Wheel, Tire & Brake", action: "CHECK CONDITION/PSI" },
+            { item: "Fuel Tank Sump Drains (5)", action: "DRAIN & CHECK" },
+            { item: "Flap & Aileron", action: "CHECK FREEDOM/SECURITY" }
+        ]},
+        "engine-start": { title: "6. Engine Start", category: "Normal Standard Ops", items: [
+            { item: "Preflight & Briefing", action: "COMPLETED" },
+            { item: "Seats & Belts", action: "ADJUST & LOCKED" },
+            { item: "Brakes", action: "TEST & HOLD" },
+            { item: "Circuit Breakers", action: "CHECK IN" },
+            { item: "Avionics & Electrical", action: "OFF" },
+            { item: "Fuel Selector Valve", action: "BOTH" },
+            { item: "Throttle", action: "OPEN 1/4 INCH" },
+            { item: "Mixture", action: "IDLE CUT-OFF" },
+            { item: "Propeller Area", action: "CLEAR" },
+            { item: "Master Switch", action: "ON" },
+            { item: "Aux Fuel Pump", action: "ON" },
+            { item: "Mixture", action: "RICH (UNTIL FLOW RISE) THEN CUT-OFF" },
+            { item: "Aux Fuel Pump", action: "OFF" },
+            { item: "Ignition Switch", action: "START" },
+            { item: "Mixture", action: "SMOOTH ADVANCE FULL RICH" },
+            { item: "Oil Pressure", action: "CHECK (GREEN WITHIN 30S)" },
+            { item: "Throttle", action: "1000 RPM OR LESS" },
+            { item: "Avionics Master Switch", action: "ON" },
+            { item: "Flaps", action: "RETRACT" }
+        ]},
+        "before-takeoff": { title: "7. Before Takeoff (Run-Up)", category: "Normal Standard Ops", items: [
+            { item: "Parking Brake", action: "SET" },
+            { item: "Cabin Doors & Windows", action: "CLOSED & LOCKED" },
+            { item: "Flight Controls", action: "FREE & CORRECT" },
+            { item: "Flight Instruments", action: "CHECK & SET" },
+            { item: "Fuel Selector Valve", action: "RECHECK BOTH" },
+            { item: "Elevator Trim", action: "SET FOR TAKEOFF" },
+            { item: "Throttle", action: "1800 RPM" },
+            { item: "Magnetos", action: "CHECK (MAX 150 DROP)" },
+            { item: "Engine Gauges & Ammeter", action: "CHECK IN GREEN" },
+            { item: "Suction Gauge", action: "CHECK GREEN" },
+            { item: "Throttle", action: "CHECK IDLE THEN 1000 RPM" },
+            { item: "Radios & Avionics", action: "SET" },
+            { item: "Transponder", action: "ALT MODE / CODE SET" },
+            { item: "Wing Flaps", action: "SET (0° - 10°)" },
+            { item: "Parking Brake", action: "RELEASE" }
+        ]},
+        "takeoff-climb": { title: "8. Takeoff & Climb Profile", category: "Normal Standard Ops", items: [
+            { item: "Throttle", action: "FULL OPEN" },
+            { item: "Engine Instruments", action: "CHECK GREEN" },
+            { item: "Elevator Control (Rotate)", action: "55 KIAS" },
+            { item: "Climb Airspeed", action: "70-80 KIAS (CLEAN)" },
+            { item: "Flaps (When clear)", action: "RETRACT RETRACT" }
+        ]},
+        "cruise": { title: "9. Cruise flight", category: "Normal Standard Ops", items: [
+            { item: "Power Configuration", action: "2100 - 2700 RPM" },
+            { item: "Elevator Trim", action: "ADJUSTED" },
+            { item: "Mixture", action: "LEANED" }
+        ]},
+        "before-landing": { title: "10. Before Landing", category: "Normal Standard Ops", items: [
+            { item: "Seats & Seat Belts", action: "SECURED & LOCKED" },
+            { item: "Fuel Selector Valve", action: "BOTH" },
+            { item: "Mixture", action: "RICH" },
+            { item: "Landing/Taxi Lights", action: "ON" },
+            { item: "Autopilot", action: "DISENGAGE" }
+        ]},
+        "landing": { title: "11. Landing Phase", category: "Normal Standard Ops", items: [
+            { item: "Normal Approach Speed", action: "60-70 KIAS (FLAPS UP)" },
+            { item: "Flaps Extension Schedule", action: "AS REQUIRED (0°-30°)" },
+            { item: "Final Stabilization Speed", action: "61 KIAS (FLAPS 30°)" },
+            { item: "Touchdown Mode", action: "MAINS FIRST" },
+            { item: "Landing Rollout", action: "GENTLY LOWER NOSE" },
+            { item: "Braking Input", action: "AS REQUIRED" }
+        ]},
+        "after-securing": { title: "12. After Landing & Securing", category: "Normal Standard Ops", items: [
+            { item: "Wing Flaps", action: "RETRACT" },
+            { item: "Transponder", action: "STANDBY" },
+            { item: "Landing/Taxi Lights", action: "OFF" },
+            { item: "Parking Brake", action: "SET" },
+            { item: "Avionics Master Switch", action: "OFF" },
+            { item: "Throttle", action: "IDLE" },
+            { item: "Mixture", action: "IDLE CUT-OFF" },
+            { item: "Ignition Switch & Key", action: "OFF / REMOVED" },
+            { item: "Master Switch", action: "OFF" },
+            { item: "Control Wheel Lock", action: "INSTALLED" }
+        ]}
+    };
+
+    let userStates = JSON.parse(localStorage.getItem('c172_efb_states')) || {};
+    let currentChecklistKey = null;
+
+    function buildMenu() {
+        const grid = document.getElementById('menuGrid');
+        grid.innerHTML = '';
+        
+        let categories = {};
+        Object.keys(checklistData).forEach(key => {
+            let cat = checklistData[key].category;
+            if(!categories[cat]) categories[cat] = [];
+            categories[cat].push(key);
+        });
+
+        Object.keys(categories).forEach(catName => {
+            const heading = document.createElement('div');
+            heading.className = 'menu-section-title';
+            heading.innerText = catName;
+            grid.appendChild(heading);
+
+            categories[catName].forEach(key => {
+                const data = checklistData[key];
+                const total = data.items.length;
+                const checkedCount = userStates[key] ? userStates[key].filter(Boolean).length : 0;
+                
+                const card = document.createElement('div');
+                card.className = 'menu-card';
+                card.onclick = () => showChecklist(key);
+                
+                const badgeClass = checkedCount === total ? 'progress-badge complete' : 'progress-badge';
+                card.innerHTML = `<h2>${data.title}</h2><span class="${badgeClass}">${checkedCount}/${total}</span>`;
+                grid.appendChild(card);
+            });
+        });
+    }
+
+    function showChecklist(key) {
+        currentChecklistKey = key;
+        document.getElementById('menuView').classList.remove('active');
+        document.getElementById('checklistView').classList.add('active');
+        document.getElementById('backButton').style.visibility = 'visible';
+        
+        const data = checklistData[key];
+        document.getElementById('mainTitle').innerText = data.title;
+        
+        if (!userStates[key]) {
+            userStates[key] = new Array(data.items.length).fill(false);
+        }
+
+        const container = document.getElementById('itemsContainer');
+        container.innerHTML = '<div class="checklist-group"></div>';
+        const group = container.querySelector('.checklist-group');
+
+        data.items.forEach((itemObj, index) => {
+            const row = document.createElement('div');
+            row.className = 'checklist-row' + (userStates[key][index] ? ' checked' : '');
+            row.onclick = () => toggleRow(row, index);
+            row.innerHTML = `<span class="checklist-item-text">${itemObj.item}</span><span class="checklist-action-text">${itemObj.action}</span>`;
+            group.appendChild(row);
+        });
+    }
+
+    function toggleRow(row, index) {
+        const state = !userStates[currentChecklistKey][index];
+        userStates[currentChecklistKey][index] = state;
+        localStorage.setItem('c172_efb_states', JSON.stringify(userStates));
+        
+        if (state) row.classList.add('checked');
+        else row.classList.remove('checked');
+    }
+
+    function showMenu() {
+        document.getElementById('checklistView').classList.remove('active');
+        document.getElementById('menuView').classList.add('active');
+        document.getElementById('backButton').style.visibility = 'hidden';
+        document.getElementById('mainTitle').innerText = "C172 POH CHECKLIST";
+        buildMenu();
+    }
+
+    function resetAll() {
+        if(confirm("Reset progress down to all clean sheets?")) {
+            userStates = {};
+            localStorage.removeItem('c172_efb_states');
+            if(document.getElementById('checklistView').classList.contains('active')) {
+                showChecklist(currentChecklistKey);
+            } else {
+                buildMenu();
+            }
+        }
+    }
+
+    // Initialize display framework
+    buildMenu();
+</script>
+</body>
+</html>
